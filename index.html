@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Divi Manager · HTML a Divi</title>
+  <meta name="description" content="App estática para convertir HTML a estructura Divi con vista previa comparativa.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <section id="access-screen" class="access-screen">
+      <div class="access-card">
+        <p class="eyebrow">HTML → Divi Theme</p>
+        <h1>Divi Manager</h1>
+        <p class="muted">Sube un HTML, revisa la vista original, revisa la versión convertida y descarga el resultado.</p>
+        <form id="access-form" class="access-form">
+          <label for="access-key">Clave de acceso</label>
+          <input id="access-key" type="password" autocomplete="current-password" placeholder="Introduce tu clave">
+          <button type="submit">Entrar</button>
+          <p id="access-error" class="error" hidden>Clave incorrecta.</p>
+        </form>
+      </div>
+    </section>
+
+    <section id="app-screen" class="app-screen" hidden>
+      <header class="app-header">
+        <div>
+          <p class="eyebrow">Divi Manager</p>
+          <h1>Convertidor HTML a Divi</h1>
+          <p class="muted">La conversión se ejecuta en tu navegador. El HTML no se sube a ningún servidor.</p>
+        </div>
+        <div class="header-actions">
+          <button id="reset-btn" type="button" class="ghost">Nuevo archivo</button>
+        </div>
+      </header>
+
+      <section class="upload-panel">
+        <div class="dropzone" id="dropzone">
+          <input id="file-input" type="file" accept=".html,.htm,text/html">
+          <div>
+            <strong>Sube aquí tu HTML</strong>
+            <p>Arrastra el archivo o pulsa para seleccionarlo.</p>
+          </div>
+        </div>
+        <div class="file-meta" id="file-meta">Sin archivo cargado.</div>
+      </section>
+
+      <section class="controls-panel" id="controls-panel" hidden>
+        <div>
+          <label for="output-name">Nombre de salida</label>
+          <input id="output-name" type="text" value="divi-layout">
+        </div>
+        <div>
+          <label for="conversion-mode">Modo</label>
+          <select id="conversion-mode">
+            <option value="balanced">Equilibrado: módulos nativos + Code si hace falta</option>
+            <option value="safe">Seguro: conserva más HTML en Code</option>
+            <option value="editable">Editable: intenta más módulos Divi</option>
+          </select>
+        </div>
+        <button id="convert-btn" type="button">Convertir</button>
+      </section>
+
+      <section id="result-panel" class="result-panel" hidden>
+        <div class="result-header">
+          <div>
+            <h2>Vista previa comparativa</h2>
+            <p class="muted">Izquierda: HTML original. Derecha: versión creada desde la estructura convertida.</p>
+          </div>
+          <div class="download-actions">
+            <button id="download-shortcodes" type="button">Descargar shortcodes</button>
+            <button id="download-json" type="button" class="ghost">Descargar JSON</button>
+            <button id="download-css" type="button" class="ghost">Descargar CSS</button>
+            <button id="download-preview" type="button" class="ghost">Descargar preview</button>
+          </div>
+        </div>
+
+        <div class="preview-grid">
+          <article class="preview-card">
+            <div class="preview-title">
+              <strong>Original</strong>
+              <span id="original-size"></span>
+            </div>
+            <iframe id="original-preview" title="Vista previa original" sandbox="allow-same-origin"></iframe>
+          </article>
+
+          <article class="preview-card">
+            <div class="preview-title">
+              <strong>Creada para Divi</strong>
+              <span id="created-stats"></span>
+            </div>
+            <iframe id="created-preview" title="Vista previa creada" sandbox="allow-same-origin"></iframe>
+          </article>
+        </div>
+
+        <div class="code-tabs">
+          <button class="tab active" data-tab="shortcodes">Shortcodes Divi</button>
+          <button class="tab" data-tab="json">JSON</button>
+          <button class="tab" data-tab="css">CSS</button>
+        </div>
+        <textarea id="output-code" readonly spellcheck="false"></textarea>
+      </section>
+    </section>
+  </main>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
