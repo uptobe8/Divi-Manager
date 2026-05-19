@@ -1,0 +1,22 @@
+{
+  "name": "divi-manager",
+  "version": "0.1.0",
+  "description": "Pipeline HTML to Divi shortcodes and intermediate layouts.",
+  "type": "module",
+  "main": "src/cli.js",
+  "bin": {
+    "divi-manager": "src/cli.js"
+  },
+  "scripts": {
+    "convert": "node src/cli.js convert ./examples ./dist",
+    "convert:demo": "node src/cli.js convert ./examples ./dist",
+    "check": "node src/cli.js convert ./examples ./dist"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}
