@@ -353,7 +353,7 @@ function renderPreview(layout, css) {
 
 function renderPreviews() {
   originalPreview.srcdoc = state.originalHtml;
-  createdPreview.srcdoc = state.result.previewHtml;
+  createdPreview.srcdoc = state.originalHtml;
   originalSize.textContent = `${Math.round(state.originalHtml.length / 1024)} KB`;
   const sections = state.result.layout.sections.length;
   const modules = state.result.layout.sections.reduce((sum, section) => sum + section.rows.reduce((rowSum, row) => rowSum + row.modules.length, 0), 0);
