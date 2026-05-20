@@ -1,4 +1,4 @@
-/* Access gate: default key + user-changeable local key + load skeleton fix + exact generated preview. */
+/* Access gate: default key + user-changeable local key + load skeleton fix + exact preview + CSS embedded exports. */
 (function(){
   const STORAGE_KEY='divi-manager-custom-access-key';
   const DEFAULT_KEY='divi-manager';
@@ -41,7 +41,37 @@
       return result;
     };
   }
+  function esc(v){return String(v||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+  function safeName(){try{return baseName()}catch(e){return 'divi-layout'}}
+  function save(name,content,type){const blob=new Blob([content||''],{type:type||'text/plain'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url)}
+  function cssSection(){
+    let css='';try{css=state.result&&state.result.css||''}catch(e){}
+    if(!css)return'';
+    return '[et_pb_section fb_built="1" _builder_version="4.27.0" global_colors_info="{}"]\n[et_pb_row _builder_version="4.27.0" global_colors_info="{}"]\n[et_pb_column type="4_4" _builder_version="4.27.0" global_colors_info="{}"]\n[et_pb_code _builder_version="4.27.0" global_colors_info="{}"]<style id="divi-manager-inline-css">\n'+css+'\n</style>[/et_pb_code]\n[/et_pb_column]\n[/et_pb_row]\n[/et_pb_section]\n\n';
+  }
+  function shortcodesWithCss(){
+    let s='';try{s=state.result&&state.result.shortcodes||''}catch(e){}
+    if(!s)return'';
+    if(s.indexOf('divi-manager-inline-css')!==-1)return s;
+    return cssSection()+s;
+  }
+  function jsonWithCss(){return{context:'et_builder',data:{'100001':shortcodesWithCss()},presets:{},images:{}}}
+  function patchOutputTabs(){
+    if(window.__cssExportTabsFixed||typeof window.setOutputTab!=='function')return;
+    window.__cssExportTabsFixed=true;
+    const prev=window.setOutputTab;
+    window.setOutputTab=function(tab){prev(tab);try{if(!state.result)return;if(tab==='shortcodes')outputCode.value=shortcodesWithCss();if(tab==='json')outputCode.value=JSON.stringify(jsonWithCss(),null,2)}catch(e){}};
+  }
+  window.addEventListener('click',function(e){
+    const j=e.target&&e.target.closest&&e.target.closest('#download-json');
+    const s=e.target&&e.target.closest&&e.target.closest('#download-shortcodes');
+    if(!j&&!s)return;
+    try{if(!state.result)return;}catch(err){return;}
+    e.preventDefault();e.stopImmediatePropagation();e.stopPropagation();
+    if(j)save(safeName()+'.divi.json',JSON.stringify(jsonWithCss(),null,2),'application/json');
+    if(s)save(safeName()+'.divi-shortcodes.txt',shortcodesWithCss(),'text/plain');
+  },true);
   window.DIVI_MANAGER_ACCESS={currentKey,setKey,resetKey,unlock};
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){if(sessionStorage.getItem('divi-manager-unlocked')==='1')injectKeyPanel();loadSkeletonFix();setTimeout(applyExactPreviewFix,150);setTimeout(applyExactPreviewFix,700);});
-  else{if(sessionStorage.getItem('divi-manager-unlocked')==='1')injectKeyPanel();loadSkeletonFix();setTimeout(applyExactPreviewFix,150);setTimeout(applyExactPreviewFix,700);}
+  function boot(){if(sessionStorage.getItem('divi-manager-unlocked')==='1')injectKeyPanel();loadSkeletonFix();setTimeout(applyExactPreviewFix,150);setTimeout(applyExactPreviewFix,700);setTimeout(patchOutputTabs,250);setTimeout(patchOutputTabs,900);}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();
