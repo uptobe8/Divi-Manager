@@ -106,6 +106,19 @@
     </section>
   </main>
 
+  <script>
+    window.DIVI_MANAGER_BLOCKED_RUNTIME_FIXES = ['exact-conversion-fix.js', 'native-fixes.js', 'access-fix.js'];
+    (function () {
+      const blocked = window.DIVI_MANAGER_BLOCKED_RUNTIME_FIXES;
+      const appendChild = Element.prototype.appendChild;
+      Element.prototype.appendChild = function (node) {
+        if (node && node.tagName === 'SCRIPT' && blocked.some((name) => String(node.src || '').includes(name))) {
+          return node;
+        }
+        return appendChild.call(this, node);
+      };
+    })();
+  </script>
   <script src="config.js?v=4"></script>
   <script src="app.js?v=4"></script>
 </body>
