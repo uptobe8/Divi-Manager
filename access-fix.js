@@ -1,4 +1,4 @@
-/* Access gate: default key + user-changeable local key + load skeleton fix. */
+/* Access gate: default key + user-changeable local key + load skeleton fix + exact generated preview. */
 (function(){
   const STORAGE_KEY='divi-manager-custom-access-key';
   const DEFAULT_KEY='divi-manager';
@@ -27,7 +27,21 @@
     if(document.querySelector('script[data-skeleton-preview-fix]'))return;
     const s=document.createElement('script');s.src='skeleton-preview-fix.js?v=2';s.dataset.skeletonPreviewFix='1';document.body.appendChild(s);
   }
+  function applyExactPreviewFix(){
+    if(window.__exactPreviewFixed)return;
+    if(typeof window.convertHtml!=='function')return;
+    window.__exactPreviewFixed=true;
+    const previous=window.convertHtml;
+    window.convertHtml=function(html,mode){
+      const result=previous(html,mode);
+      result.previewHtml=html;
+      result.original=result.original||{};
+      result.original.html=html;
+      result.original.previewHtml=html;
+      return result;
+    };
+  }
   window.DIVI_MANAGER_ACCESS={currentKey,setKey,resetKey,unlock};
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){if(sessionStorage.getItem('divi-manager-unlocked')==='1')injectKeyPanel();loadSkeletonFix();});
-  else{if(sessionStorage.getItem('divi-manager-unlocked')==='1')injectKeyPanel();loadSkeletonFix();}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){if(sessionStorage.getItem('divi-manager-unlocked')==='1')injectKeyPanel();loadSkeletonFix();setTimeout(applyExactPreviewFix,150);setTimeout(applyExactPreviewFix,700);});
+  else{if(sessionStorage.getItem('divi-manager-unlocked')==='1')injectKeyPanel();loadSkeletonFix();setTimeout(applyExactPreviewFix,150);setTimeout(applyExactPreviewFix,700);}
 })();
