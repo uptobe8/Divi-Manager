@@ -62,14 +62,36 @@
     const prev=window.setOutputTab;
     window.setOutputTab=function(tab){prev(tab);try{if(!state.result)return;if(tab==='shortcodes')outputCode.value=shortcodesWithCss();if(tab==='json')outputCode.value=JSON.stringify(jsonWithCss(),null,2)}catch(e){}};
   }
+  const enc=new TextEncoder();
+  const table=(()=>{let c,t=[];for(let n=0;n<256;n++){c=n;for(let k=0;k<8;k++)c=c&1?0xedb88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+  const crc=d=>{let c=0xffffffff;for(let i=0;i<d.length;i++)c=table[(c^d[i])&255]^(c>>>8);return(c^0xffffffff)>>>0};
+  const u16=n=>[n&255,(n>>>8)&255],u32=n=>[n&255,(n>>>8)&255,(n>>>16)&255,(n>>>24)&255];
+  function makeZip(files){let local=[],central=[],offset=0;for(const f of files){const name=enc.encode(f.name),data=enc.encode(f.content||''),cr=crc(data),head=new Uint8Array([...u32(0x04034b50),...u16(20),...u16(0),...u16(0),...u16(0),...u16(0),...u32(cr),...u32(data.length),...u32(data.length),...u16(name.length),...u16(0),...name]);local.push(new Uint8Array([...head,...data]));central.push(new Uint8Array([...u32(0x02014b50),...u16(20),...u16(20),...u16(0),...u16(0),...u16(0),...u16(0),...u32(cr),...u32(data.length),...u32(data.length),...u16(name.length),...u16(0),...u16(0),...u16(0),...u16(0),...u32(0),...u32(offset),...name]));offset+=head.length+data.length}const csize=central.reduce((a,b)=>a+b.length,0),end=new Uint8Array([...u32(0x06054b50),...u16(0),...u16(0),...u16(files.length),...u16(files.length),...u32(csize),...u32(offset),...u16(0)]);return new Blob([...local,...central,end],{type:'application/zip'})}
+  function downloadZipWithCss(){
+    let r;try{r=state.result}catch(e){} if(!r)return;
+    const originalHtml=state.originalHtml||r.original?.html||'';
+    const files=[
+      {name:'original/original.html',content:originalHtml},
+      {name:'original/original.css',content:r.original?.css||r.css||''},
+      {name:'original/original.txt',content:r.original?.text||''},
+      {name:'original/original-preview.html',content:originalHtml},
+      {name:'generado/divi-shortcodes.txt',content:shortcodesWithCss()},
+      {name:'generado/divi.json',content:JSON.stringify(jsonWithCss(),null,2)},
+      {name:'generado/generated.css',content:r.css||''},
+      {name:'generado/generated-preview.html',content:originalHtml}
+    ];
+    const url=URL.createObjectURL(makeZip(files)),a=document.createElement('a');a.href=url;a.download=safeName()+'.original-y-divi.zip';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+  }
   window.addEventListener('click',function(e){
     const j=e.target&&e.target.closest&&e.target.closest('#download-json');
     const s=e.target&&e.target.closest&&e.target.closest('#download-shortcodes');
-    if(!j&&!s)return;
+    const z=e.target&&e.target.closest&&e.target.closest('#download-zip');
+    if(!j&&!s&&!z)return;
     try{if(!state.result)return;}catch(err){return;}
     e.preventDefault();e.stopImmediatePropagation();e.stopPropagation();
     if(j)save(safeName()+'.divi.json',JSON.stringify(jsonWithCss(),null,2),'application/json');
     if(s)save(safeName()+'.divi-shortcodes.txt',shortcodesWithCss(),'text/plain');
+    if(z)downloadZipWithCss();
   },true);
   window.DIVI_MANAGER_ACCESS={currentKey,setKey,resetKey,unlock};
   function boot(){if(sessionStorage.getItem('divi-manager-unlocked')==='1')injectKeyPanel();loadSkeletonFix();setTimeout(applyExactPreviewFix,150);setTimeout(applyExactPreviewFix,700);setTimeout(patchOutputTabs,250);setTimeout(patchOutputTabs,900);}
