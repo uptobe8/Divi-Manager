@@ -19,6 +19,17 @@ function getClasses($node) {
     .filter(Boolean);
 }
 
+function getColumnType(count) {
+  return ({
+    1: '4_4',
+    2: '1_2',
+    3: '1_3',
+    4: '1_4',
+    5: '1_5',
+    6: '1_6'
+  })[count] || '4_4';
+}
+
 function isButtonLike($node) {
   const classes = getClasses($node).join(' ').toLowerCase();
   const role = ($node.attr('role') || '').toLowerCase();
@@ -30,7 +41,17 @@ function isButtonLike($node) {
 
 function isCardLike($node) {
   const classes = getClasses($node).join(' ').toLowerCase();
-  return /card|feature|service|item|box|tile|benefit/.test(classes);
+  return /card|feature|service|item|box|tile|benefit|package|product|review|step|kpi/.test(classes);
+}
+
+function isColumnCandidate($node) {
+  const classes = getClasses($node).join(' ').toLowerCase();
+  return /(^|\s)(col|column|card|feature|service|item|box|tile|benefit|package|product|review|step|kpi)|span|w-|basis/.test(classes);
+}
+
+function isColumnGroup($node) {
+  const classes = getClasses($node).join(' ').toLowerCase();
+  return /grid|row|columns|cols|cards|features|services|items|list|wrapper/.test(classes);
 }
 
 function extractCss($) {
@@ -97,14 +118,14 @@ function createBlurbModule($, node) {
 }
 
 function createCodeModule($, node) {
-  const html = $.html(node);
+  const html = typeof node === 'string' ? node : $.html(node);
   return {
     type: 'code',
     html: cleanHtml(html)
   };
 }
 
-function parseModulesFromContainer($, container) {
+function parseModulesFromContainer($, container, mode = 'balanced') {
   const modules = [];
   const consumed = new Set();
 
@@ -127,7 +148,7 @@ function parseModulesFromContainer($, container) {
       return;
     }
 
-    if (isCardLike($node)) {
+    if (mode !== 'safe' && isCardLike($node)) {
       modules.push(createBlurbModule($, node));
       consumed.add(node);
       return;
@@ -154,12 +175,14 @@ function parseModulesFromContainer($, container) {
     }
 
     const nestedSimple = $node.find('h1,h2,h3,h4,h5,h6,p,ul,ol,a,button,img').length;
-    if (nestedSimple > 0 && nestedSimple <= 8) {
-      const nestedModules = parseModulesFromContainer($, node);
+    if ((mode === 'editable' && nestedSimple > 0 && nestedSimple <= 14) || (nestedSimple > 0 && nestedSimple <= 8)) {
+      const nestedModules = parseModulesFromContainer($, node, mode);
       if (nestedModules.length) {
         modules.push(...nestedModules);
       } else {
-        modules.push(createTextModule($node.html() || $.html(node), { source: 'nested' }));
+        modules.push(mode === 'safe'
+          ? createCodeModule($, node)
+          : createTextModule($node.html() || $.html(node), { source: 'nested' }));
       }
       consumed.add(node);
       return;
@@ -172,27 +195,87 @@ function parseModulesFromContainer($, container) {
   return modules;
 }
 
-function detectColumns($, section) {
+function buildColumns($, nodes, mode) {
+  const type = getColumnType(nodes.length);
+  return nodes.map((node, index) => ({
+    type,
+    classes: getClasses($(node)),
+    modules: parseModulesFromContainer($, node, mode).map((module) => ({
+      ...module,
+      column: index + 1
+    }))
+  }));
+}
+
+function detectColumns($, section, mode = 'balanced') {
   const directChildren = $(section).children().filter((_, child) => !$(child).is('script,style,link,meta'));
-  const columnCandidates = directChildren.filter((_, child) => {
-    const classes = getClasses($(child)).join(' ').toLowerCase();
-    return /col|column|grid|span|w-|basis|card|feature|service/.test(classes);
+  const directColumnCandidates = directChildren.filter((_, child) => isColumnCandidate($(child)));
+
+  if (directColumnCandidates.length >= 2 && directColumnCandidates.length <= 6) {
+    return buildColumns($, directColumnCandidates.toArray(), mode);
+  }
+
+  const nestedGroup = directChildren.filter((_, child) => isColumnGroup($(child))).toArray().find((node) => {
+    const children = $(node).children().filter((__, child) => !$(child).is('script,style,link,meta'));
+    return children.length >= 2 && children.length <= 6;
   });
 
-  if (columnCandidates.length >= 2 && columnCandidates.length <= 6) {
-    return columnCandidates.toArray().map((node) => ({
-      classes: getClasses($(node)),
-      modules: parseModulesFromContainer($, node)
-    }));
+  if (nestedGroup) {
+    const children = $(nestedGroup).children().filter((_, child) => !$(child).is('script,style,link,meta')).toArray();
+    return buildColumns($, children, mode);
   }
 
   return [{
+    type: '4_4',
     classes: getClasses($(section)),
-    modules: parseModulesFromContainer($, section)
+    modules: parseModulesFromContainer($, section, mode).map((module) => ({
+      ...module,
+      column: 1
+    }))
   }];
 }
 
-function parseSections($) {
+function createVisualSections($, css) {
+  $('script,noscript').remove();
+  const blocks = $('body').children().filter((_, node) => !$(node).is('script,style,link,meta,title')).toArray();
+  const modules = [];
+
+  if (css) {
+    modules.push({
+      type: 'code',
+      html: `<style id="divi-manager-inline-css">\n${css}\n</style>`,
+      column: 1
+    });
+  }
+
+  blocks.forEach((node) => {
+    modules.push({
+      ...createCodeModule($, node),
+      column: 1
+    });
+  });
+
+  if (!modules.length) {
+    modules.push({
+      type: 'code',
+      html: '<!-- Empty visual conversion -->',
+      column: 1
+    });
+  }
+
+  return [{
+    id: 'visual-code-output',
+    tag: 'body',
+    classes: [],
+    rows: [{
+      columns: 1,
+      columnsData: [{ type: '4_4', classes: [], modules }],
+      modules
+    }]
+  }];
+}
+
+function parseSections($, mode = 'balanced') {
   let candidates = $('main > section, body > section, section').toArray();
 
   if (!candidates.length) {
@@ -207,7 +290,8 @@ function parseSections($) {
 
   return candidates.map((section, index) => {
     const $section = $(section);
-    const columns = detectColumns($, section);
+    const columnsData = detectColumns($, section, mode).filter((column) => column.modules.length);
+    const modules = columnsData.flatMap((column) => column.modules);
 
     return {
       id: $section.attr('id') || `section-${index + 1}`,
@@ -215,11 +299,9 @@ function parseSections($) {
       classes: getClasses($section),
       rows: [
         {
-          columns: columns.length,
-          modules: columns.flatMap((column, columnIndex) => column.modules.map((module) => ({
-            ...module,
-            column: columnIndex + 1
-          })))
+          columns: columnsData.length || 1,
+          columnsData: columnsData.length ? columnsData : [{ type: '4_4', classes: [], modules }],
+          modules
         }
       ]
     };
@@ -227,17 +309,23 @@ function parseSections($) {
 }
 
 export function convertHtmlToDivi(html, options = {}) {
+  const mode = options.mode || 'balanced';
   const $ = cheerio.load(html, { decodeEntities: false });
   const title = normalizeText($('title').first().text()) || options.sourceFile || 'Untitled Divi Layout';
   const css = extractCss($);
   $('script,style,noscript').remove();
 
+  const sections = mode === 'visual'
+    ? createVisualSections($, css)
+    : parseSections($, mode);
+
   const layout = {
-    version: '0.1.0',
+    version: mode === 'visual' ? '0.2.0-visual-code' : '0.2.0-divi-columns',
     source: options.sourceFile || null,
     title,
+    mode,
     generatedAt: new Date().toISOString(),
-    sections: parseSections($)
+    sections
   };
 
   return {
