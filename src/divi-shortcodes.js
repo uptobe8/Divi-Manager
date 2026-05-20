@@ -61,12 +61,51 @@ function renderModule(module) {
   }
 }
 
-function renderRow(row) {
-  const modules = row.modules.map(renderModule).join('\n');
-  return wrap('et_pb_row', {
+function getColumnType(count) {
+  return ({
+    1: '4_4',
+    2: '1_2',
+    3: '1_3',
+    4: '1_4',
+    5: '1_5',
+    6: '1_6'
+  })[count] || '4_4';
+}
+
+function getRowColumns(row) {
+  if (Array.isArray(row.columnsData) && row.columnsData.length) {
+    return row.columnsData;
+  }
+
+  const count = Math.max(1, Math.min(Number(row.columns) || 1, 6));
+  const type = getColumnType(count);
+  return Array.from({ length: count }, (_, index) => ({
+    type,
+    modules: (row.modules || []).filter((module) => (module.column || 1) === index + 1)
+  }));
+}
+
+function renderColumn(column, fallbackType = '4_4') {
+  const modules = (column.modules || []).map(renderModule).join('\n');
+  return wrap('et_pb_column', {
+    type: column.type || fallbackType,
     _builder_version: '4.27.0',
+    custom_padding: '|||',
     global_colors_info: '{}'
   }, `\n${modules}\n`);
+}
+
+function renderRow(row) {
+  const columns = getRowColumns(row);
+  const fallbackType = getColumnType(columns.length);
+  const columnStructure = columns.map((column) => column.type || fallbackType).join(',');
+  const renderedColumns = columns.map((column) => renderColumn(column, fallbackType)).join('\n');
+
+  return wrap('et_pb_row', {
+    column_structure: columnStructure,
+    _builder_version: '4.27.0',
+    global_colors_info: '{}'
+  }, `\n${renderedColumns}\n`);
 }
 
 function renderSection(section) {
