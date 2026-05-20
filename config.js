@@ -5,3 +5,14 @@ window.DIVI_MANAGER_CONFIG = {
   accessKeyHash: 'b753cf09b5a99cc39da22d99b8a205f28c5a1b36a34182c072cc99e12b6f8134',
   defaultOutputPrefix: 'divi-layout'
 };
+
+(function(){
+  function loadExact(){
+    if (document.querySelector('script[data-exact-conversion-fix]')) return;
+    const s = document.createElement('script');
+    s.src = 'exact-conversion-fix.js?v=2';
+    s.dataset.exactConversionFix = '1';
+    document.body.appendChild(s);
+  }
+  window.addEventListener('load', function(){ setTimeout(loadExact, 250); });
+})();
