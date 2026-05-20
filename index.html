@@ -121,5 +121,28 @@
   </script>
   <script src="config.js?v=4"></script>
   <script src="app.js?v=4"></script>
+  <script>
+    (function () {
+      let lastConversion = null;
+      const baseConvertHtml = window.convertHtml;
+      if (typeof baseConvertHtml === 'function') {
+        window.convertHtml = function (html, mode) {
+          lastConversion = baseConvertHtml(html, mode);
+          return lastConversion;
+        };
+      }
+
+      const baseRenderPreviews = window.renderPreviews;
+      if (typeof baseRenderPreviews === 'function') {
+        window.renderPreviews = function () {
+          baseRenderPreviews();
+          const createdPreview = document.getElementById('created-preview');
+          if (createdPreview && lastConversion && lastConversion.previewHtml) {
+            createdPreview.srcdoc = lastConversion.previewHtml;
+          }
+        };
+      }
+    })();
+  </script>
 </body>
 </html>
