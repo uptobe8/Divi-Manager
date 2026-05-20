@@ -54,9 +54,10 @@
         <div>
           <label for="conversion-mode">Modo</label>
           <select id="conversion-mode">
-            <option value="balanced">Equilibrado: módulos nativos + Code si hace falta</option>
-            <option value="safe">Seguro: conserva más HTML en Code</option>
-            <option value="editable">Editable: intenta más módulos Divi</option>
+            <option value="balanced">Equilibrado: módulos nativos primero</option>
+            <option value="editable">Editable: intenta descomponer más módulos Divi</option>
+            <option value="safe">Seguro: conserva HTML en Text Module</option>
+            <option value="visual">Fidelidad visual: conserva HTML en Code Module</option>
           </select>
         </div>
         <button id="convert-btn" type="button">Convertir</button>
@@ -73,6 +74,7 @@
             <button id="download-json" type="button" class="ghost">Descargar JSON</button>
             <button id="download-css" type="button" class="ghost">Descargar CSS</button>
             <button id="download-preview" type="button" class="ghost">Descargar preview</button>
+            <button id="download-zip" type="button" class="ghost">Descargar ZIP completo</button>
           </div>
         </div>
 
