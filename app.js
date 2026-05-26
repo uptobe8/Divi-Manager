@@ -1,14 +1,8 @@
 const config = window.DIVI_MANAGER_CONFIG || {};
-
-const state = {
-  fileName: '',
-  originalHtml: '',
-  result: null,
-  activeTab: 'shortcodes'
-};
-
+const state = { fileName: '', originalHtml: '', result: null, activeTab: 'shortcodes' };
+const DIVI_VERSION = '4.27.0';
+const IMPORT_ID = '100001';
 const el = (id) => document.getElementById(id);
-
 const accessScreen = el('access-screen');
 const appScreen = el('app-screen');
 const accessForm = el('access-form');
@@ -28,436 +22,46 @@ const createdPreview = el('created-preview');
 const originalSize = el('original-size');
 const createdStats = el('created-stats');
 const outputCode = el('output-code');
-
-function normalizeText(value = '') {
-  return value.replace(/\s+/g, ' ').trim();
-}
-
-function escapeAttr(value = '') {
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
-
-function escapeHtml(value = '') {
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
-
-async function sha256(value) {
-  const buffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
-  return [...new Uint8Array(buffer)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
-}
-
-function unlockApp() {
-  accessScreen.hidden = true;
-  appScreen.hidden = false;
-  sessionStorage.setItem('divi-manager-unlocked', '1');
-}
-
-async function handleAccess(event) {
-  event.preventDefault();
-
-  if (!config.accessGateEnabled) {
-    unlockApp();
-    return;
-  }
-
-  const hash = await sha256(accessKey.value || '');
-  if (hash === config.accessKeyHash) {
-    unlockApp();
-  } else {
-    accessError.hidden = false;
-  }
-}
-
-function getClasses(node) {
-  return Array.from(node.classList || []);
-}
-
-function isButtonLike(node) {
-  const classes = getClasses(node).join(' ').toLowerCase();
-  const tag = node.tagName ? node.tagName.toLowerCase() : '';
-  const role = (node.getAttribute('role') || '').toLowerCase();
-  return ['a', 'button'].includes(tag) && (
-    role === 'button' || /btn|button|cta|primary|secondary|link-button/.test(classes)
-  );
-}
-
-function isCardLike(node) {
-  const classes = getClasses(node).join(' ').toLowerCase();
-  return /card|feature|service|item|box|tile|benefit|package|product|review|step|kpi/.test(classes);
-}
-
-function cleanNodeHtml(html = '') {
-  return html.trim();
-}
-
-function createTextModule(node) {
-  return {
-    type: 'text',
-    html: cleanNodeHtml(node.outerHTML || node.innerHTML || node.textContent || ''),
-    tag: node.tagName ? node.tagName.toLowerCase() : 'text'
-  };
-}
-
-function createButtonModule(node) {
-  return {
-    type: 'button',
-    text: normalizeText(node.textContent || 'Botón'),
-    url: node.getAttribute('href') || '#',
-    target: node.getAttribute('target') || '',
-    classes: getClasses(node)
-  };
-}
-
-function createImageModule(node) {
-  return {
-    type: 'image',
-    src: node.getAttribute('src') || '',
-    alt: node.getAttribute('alt') || '',
-    title: node.getAttribute('title') || '',
-    classes: getClasses(node)
-  };
-}
-
-function createBlurbModule(node) {
-  const heading = node.querySelector('h1,h2,h3,h4,h5,h6');
-  const image = node.querySelector('img');
-  const clone = node.cloneNode(true);
-  const cloneHeading = clone.querySelector('h1,h2,h3,h4,h5,h6');
-  const cloneImage = clone.querySelector('img');
-  if (cloneHeading) cloneHeading.remove();
-  if (cloneImage) cloneImage.remove();
-
-  return {
-    type: 'blurb',
-    title: normalizeText(heading?.textContent || node.textContent || '').slice(0, 90),
-    image: image?.getAttribute('src') || '',
-    body: cleanNodeHtml(clone.innerHTML || ''),
-    classes: getClasses(node)
-  };
-}
-
-function createCodeModule(node) {
-  return {
-    type: 'code',
-    html: cleanNodeHtml(node.outerHTML || '')
-  };
-}
-
-function shouldSkipNode(node) {
-  if (!node.tagName) return true;
-  return ['script', 'style', 'link', 'meta', 'title'].includes(node.tagName.toLowerCase());
-}
-
-function parseModules(container, mode) {
-  const modules = [];
-  const children = Array.from(container.children || []).filter((node) => !shouldSkipNode(node));
-
-  for (const node of children) {
-    const tag = node.tagName.toLowerCase();
-
-    if (isButtonLike(node)) {
-      modules.push(createButtonModule(node));
-      continue;
-    }
-
-    if (tag === 'img') {
-      modules.push(createImageModule(node));
-      continue;
-    }
-
-    if (mode !== 'safe' && isCardLike(node)) {
-      modules.push(createBlurbModule(node));
-      continue;
-    }
-
-    if (['h1','h2','h3','h4','h5','h6','p','ul','ol','blockquote'].includes(tag)) {
-      modules.push(createTextModule(node));
-      continue;
-    }
-
-    const directButtons = Array.from(node.children || []).filter(isButtonLike);
-    if (directButtons.length && normalizeText(node.textContent || '').length < 260) {
-      const textClone = node.cloneNode(true);
-      Array.from(textClone.querySelectorAll('a,button')).forEach((item) => item.remove());
-      const text = normalizeText(textClone.textContent || '');
-      if (text) modules.push({ type: 'text', html: `<p>${escapeHtml(text)}</p>`, tag: 'p' });
-      directButtons.forEach((button) => modules.push(createButtonModule(button)));
-      continue;
-    }
-
-    const onlyImage = node.children.length === 1 && node.children[0].tagName?.toLowerCase() === 'img';
-    if (onlyImage) {
-      modules.push(createImageModule(node.children[0]));
-      continue;
-    }
-
-    const simpleNestedCount = node.querySelectorAll('h1,h2,h3,h4,h5,h6,p,ul,ol,a,button,img').length;
-    if (mode === 'editable' && simpleNestedCount > 0 && simpleNestedCount <= 14) {
-      const nested = parseModules(node, mode);
-      if (nested.length) {
-        modules.push(...nested);
-        continue;
-      }
-    }
-
-    if (mode === 'safe') {
-      modules.push(createCodeModule(node));
-      continue;
-    }
-
-    if (simpleNestedCount > 0 && simpleNestedCount <= 8) {
-      const nested = parseModules(node, mode);
-      if (nested.length) {
-        modules.push(...nested);
-      } else {
-        modules.push(createCodeModule(node));
-      }
-      continue;
-    }
-
-    modules.push(createCodeModule(node));
-  }
-
-  return modules;
-}
-
-function extractCss(doc) {
-  const inlineCss = Array.from(doc.querySelectorAll('style')).map((node) => node.textContent || '').filter(Boolean);
-  const external = Array.from(doc.querySelectorAll('link[rel="stylesheet"]')).map((node) => `/* External CSS: ${node.getAttribute('href')} */`);
-  return [...inlineCss, ...external].join('\n\n');
-}
-
-function detectSections(doc) {
-  const sections = Array.from(doc.querySelectorAll('body > section, main > section, section'));
-  if (sections.length) return sections;
-  const main = doc.querySelector('main');
-  if (main) return [main];
-  const body = doc.body;
-  return body ? [body] : [];
-}
-
-function convertHtml(html, mode = 'balanced') {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
-  const css = extractCss(doc);
-  const title = normalizeText(doc.querySelector('title')?.textContent || state.fileName || 'Divi Layout');
-  const sectionNodes = detectSections(doc);
-
-  const sections = sectionNodes.map((section, index) => {
-    const modules = parseModules(section, mode).map((module) => ({ ...module, column: 1 }));
-    return {
-      id: section.id || `section-${index + 1}`,
-      tag: section.tagName.toLowerCase(),
-      classes: getClasses(section),
-      rows: [{ columns: 1, modules }]
-    };
-  }).filter((section) => section.rows.some((row) => row.modules.length));
-
-  const layout = {
-    version: '0.1.0-pages-app',
-    title,
-    fileName: state.fileName,
-    mode,
-    generatedAt: new Date().toISOString(),
-    sections
-  };
-
-  return {
-    layout,
-    css,
-    shortcodes: renderShortcodes(layout),
-    previewHtml: renderPreview(layout, css)
-  };
-}
-
-function attrs(values = {}) {
-  return Object.entries(values)
-    .filter(([, value]) => value !== undefined && value !== null && value !== '')
-    .map(([key, value]) => `${key}="${escapeAttr(value)}"`).join(' ');
-}
-
-function shortcode(tag, attributes, content = '') {
-  const attrText = attrs(attributes);
-  return `[${tag}${attrText ? ` ${attrText}` : ''}]${content}[/${tag}]`;
-}
-
-function renderModuleShortcode(module) {
-  if (module.type === 'text') {
-    return shortcode('et_pb_text', { _builder_version: '4.27.0', global_colors_info: '{}' }, module.html || '');
-  }
-  if (module.type === 'button') {
-    return shortcode('et_pb_button', {
-      button_url: module.url || '#',
-      url_new_window: module.target === '_blank' ? 'on' : 'off',
-      button_text: module.text || 'Botón',
-      _builder_version: '4.27.0',
-      global_colors_info: '{}'
-    }, '');
-  }
-  if (module.type === 'image') {
-    return shortcode('et_pb_image', {
-      src: module.src || '',
-      alt: module.alt || '',
-      title_text: module.title || module.alt || '',
-      _builder_version: '4.27.0',
-      global_colors_info: '{}'
-    }, '');
-  }
-  if (module.type === 'blurb') {
-    return shortcode('et_pb_blurb', {
-      title: module.title || '',
-      image: module.image || '',
-      _builder_version: '4.27.0',
-      global_colors_info: '{}'
-    }, module.body || '');
-  }
-  return shortcode('et_pb_code', { _builder_version: '4.27.0', global_colors_info: '{}' }, module.html || '');
-}
-
-function renderShortcodes(layout) {
-  return layout.sections.map((section) => {
-    const rows = section.rows.map((row) => {
-      const modules = row.modules.map(renderModuleShortcode).join('\n');
-      return shortcode('et_pb_row', { _builder_version: '4.27.0', global_colors_info: '{}' }, `\n${modules}\n`);
-    }).join('\n');
-    return shortcode('et_pb_section', { fb_built: '1', _builder_version: '4.27.0', global_colors_info: '{}' }, `\n${rows}\n`);
-  }).join('\n\n');
-}
-
-function renderPreviewModule(module) {
-  if (module.type === 'text') return module.html || '';
-  if (module.type === 'button') return `<p><a class="dm-button" href="${escapeAttr(module.url || '#')}">${escapeHtml(module.text || 'Botón')}</a></p>`;
-  if (module.type === 'image') return `<img src="${escapeAttr(module.src || '')}" alt="${escapeAttr(module.alt || '')}">`;
-  if (module.type === 'blurb') {
-    return `<article class="dm-blurb">${module.image ? `<img src="${escapeAttr(module.image)}" alt="">` : ''}<h3>${escapeHtml(module.title || '')}</h3><div>${module.body || ''}</div></article>`;
-  }
-  return module.html || '';
-}
-
-function renderPreview(layout, css) {
-  const body = layout.sections.map((section) => {
-    const rows = section.rows.map((row) => `<div class="dm-row">${row.modules.map(renderPreviewModule).join('\n')}</div>`).join('\n');
-    const className = ['dm-section', ...(section.classes || [])].join(' ');
-    return `<section id="${escapeAttr(section.id)}" class="${escapeAttr(className)}">${rows}</section>`;
-  }).join('\n');
-
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css || ''}\n.dm-section{padding:48px 24px}.dm-row{max-width:1180px;margin:auto}.dm-button{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:13px 18px;background:#ff5a1f;color:#fff;text-decoration:none;font-weight:900}.dm-blurb{border:1px solid #e9edf1;border-radius:22px;padding:20px;background:#fff;margin:12px 0}.dm-blurb img{max-width:100%;height:auto;display:block;margin-bottom:14px}</style></head><body>${body}</body></html>`;
-}
-
-function renderPreviews() {
-  originalPreview.srcdoc = state.originalHtml;
-  createdPreview.srcdoc = state.originalHtml;
-  originalSize.textContent = `${Math.round(state.originalHtml.length / 1024)} KB`;
-  const sections = state.result.layout.sections.length;
-  const modules = state.result.layout.sections.reduce((sum, section) => sum + section.rows.reduce((rowSum, row) => rowSum + row.modules.length, 0), 0);
-  createdStats.textContent = `${sections} secciones · ${modules} módulos`;
-}
-
-function setOutputTab(tab) {
-  state.activeTab = tab;
-  document.querySelectorAll('.tab').forEach((item) => item.classList.toggle('active', item.dataset.tab === tab));
-  if (!state.result) return;
-  if (tab === 'shortcodes') outputCode.value = state.result.shortcodes;
-  if (tab === 'json') outputCode.value = JSON.stringify(state.result.layout, null, 2);
-  if (tab === 'css') outputCode.value = state.result.css || '/* No se ha detectado CSS */';
-}
-
-function downloadText(name, content, type = 'text/plain') {
-  const blob = new Blob([content], { type });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = name;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-}
-
-function baseName() {
-  return (outputName.value || config.defaultOutputPrefix || 'divi-layout').replace(/[^a-z0-9-_]+/gi, '-').replace(/^-+|-+$/g, '') || 'divi-layout';
-}
-
-async function handleFile(file) {
-  if (!file) return;
-  state.fileName = file.name;
-  state.originalHtml = await file.text();
-  state.result = null;
-  fileMeta.textContent = `${file.name} · ${Math.round(file.size / 1024)} KB`;
-  outputName.value = file.name.replace(/\.(html|htm)$/i, '') || config.defaultOutputPrefix || 'divi-layout';
-  controlsPanel.hidden = false;
-  resultPanel.hidden = true;
-  originalPreview.srcdoc = state.originalHtml;
-}
-
-function runConversion() {
-  if (!state.originalHtml) return;
-  state.result = convertHtml(state.originalHtml, conversionMode.value);
-  resultPanel.hidden = false;
-  renderPreviews();
-  setOutputTab('shortcodes');
-}
-
-function resetApp() {
-  state.fileName = '';
-  state.originalHtml = '';
-  state.result = null;
-  fileInput.value = '';
-  fileMeta.textContent = 'Sin archivo cargado.';
-  controlsPanel.hidden = true;
-  resultPanel.hidden = true;
-  originalPreview.srcdoc = '';
-  createdPreview.srcdoc = '';
-  outputCode.value = '';
-}
-
-accessForm.addEventListener('submit', handleAccess);
-
-fileInput.addEventListener('change', (event) => handleFile(event.target.files?.[0]));
-
-dropzone.addEventListener('dragover', (event) => {
-  event.preventDefault();
-  dropzone.classList.add('is-dragover');
-});
-
-dropzone.addEventListener('dragleave', () => dropzone.classList.remove('is-dragover'));
-
-dropzone.addEventListener('drop', (event) => {
-  event.preventDefault();
-  dropzone.classList.remove('is-dragover');
-  handleFile(event.dataTransfer.files?.[0]);
-});
-
-convertBtn.addEventListener('click', runConversion);
-resetBtn.addEventListener('click', resetApp);
-
-document.querySelectorAll('.tab').forEach((button) => {
-  button.addEventListener('click', () => setOutputTab(button.dataset.tab));
-});
-
-el('download-shortcodes').addEventListener('click', () => {
-  if (state.result) downloadText(`${baseName()}.divi-shortcodes.txt`, state.result.shortcodes);
-});
-
-el('download-json').addEventListener('click', () => {
-  if (state.result) downloadText(`${baseName()}.layout.json`, JSON.stringify(state.result.layout, null, 2), 'application/json');
-});
-
-el('download-css').addEventListener('click', () => {
-  if (state.result) downloadText(`${baseName()}.css`, state.result.css || '', 'text/css');
-});
-
-el('download-preview').addEventListener('click', () => {
-  if (state.result) downloadText(`${baseName()}.preview.html`, state.result.previewHtml, 'text/html');
-});
-
-if (!config.accessGateEnabled || sessionStorage.getItem('divi-manager-unlocked') === '1') {
-  unlockApp();
-}
+function normalizeText(value = '') { return String(value || '').replace(/\s+/g, ' ').trim(); }
+function escapeAttr(value = '') { return String(value || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function escapeHtml(value = '') { return String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function tagName(node) { return node && node.tagName ? node.tagName.toLowerCase() : ''; }
+function getClasses(node) { return Array.from(node.classList || []); }
+function shouldSkipNode(node) { return !node.tagName || ['script','style','link','meta','title','noscript','svg'].includes(tagName(node)); }
+function children(node) { return Array.from(node.children || []).filter((child) => !shouldSkipNode(child)); }
+function shortcode(tag, attributes = {}, content = '') { const attrText = Object.entries(attributes).filter(([, v]) => v !== undefined && v !== null && v !== '').map(([k, v]) => `${k}="${escapeAttr(v)}"`).join(' '); return `[${tag}${attrText ? ` ${attrText}` : ''}]${content}[/${tag}]`; }
+async function sha256(value) { if (!crypto || !crypto.subtle) return ''; const buffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)); return [...new Uint8Array(buffer)].map((byte) => byte.toString(16).padStart(2, '0')).join(''); }
+function unlockApp() { accessScreen.hidden = true; appScreen.hidden = false; sessionStorage.setItem('divi-manager-unlocked', '1'); }
+async function handleAccess(event) { event.preventDefault(); if (!config.accessGateEnabled) return unlockApp(); const typedKey = accessKey.value || ''; const hash = await sha256(typedKey); if (typedKey === config.accessKey || hash === config.accessKeyHash) unlockApp(); else accessError.hidden = false; }
+function isButtonLike(node) { const classes = getClasses(node).join(' ').toLowerCase(); const tag = tagName(node); const role = (node.getAttribute('role') || '').toLowerCase(); return ['a','button'].includes(tag) && (role === 'button' || /btn|button|cta|primary|secondary|link-button|whatsapp|call|comprar|contact/.test(classes) || node.getAttribute('href')); }
+function isCardLike(node) { const classes = getClasses(node).join(' ').toLowerCase(); return /card|feature|service|item|box|tile|benefit|package|product|review|step|kpi|option|metric|buybox|notice|testimonial|post|cat-card/.test(classes); }
+function isLayoutGroup(node) { const classes = getClasses(node).join(' ').toLowerCase(); return /container|grid|row|columns|cols|cards|features|services|items|list|wrapper|split|hero-grid|footer-grid|steps|products|packages|content/.test(classes); }
+function createTextFromText(text, tag = 'p') { const clean = normalizeText(text); if (!clean) return null; const htmlTag = ['h1','h2','h3','h4','h5','h6','li','blockquote'].includes(tag) ? tag : 'p'; return { type: 'text', html: `<${htmlTag}>${escapeHtml(clean)}</${htmlTag}>`, label: clean.slice(0, 90) }; }
+function createTextModule(node) { return createTextFromText(node.textContent || '', tagName(node)); }
+function createButtonModule(node) { return { type: 'button', text: normalizeText(node.textContent || 'Botón'), url: node.getAttribute('href') || '#', target: node.getAttribute('target') || '', label: normalizeText(node.textContent || 'Botón') }; }
+function createImageModule(node) { return { type: 'image', src: node.getAttribute('src') || '', alt: node.getAttribute('alt') || '', title: node.getAttribute('title') || node.getAttribute('alt') || '', label: node.getAttribute('alt') || 'Imagen' }; }
+function createBlurbModule(node) { const heading = node.querySelector('h1,h2,h3,h4,h5,h6,strong'); const image = node.querySelector('img'); const clone = node.cloneNode(true); const cloneHeading = clone.querySelector('h1,h2,h3,h4,h5,h6,strong'); const cloneImage = clone.querySelector('img'); if (cloneHeading) cloneHeading.remove(); if (cloneImage) cloneImage.remove(); const title = normalizeText((heading && heading.textContent) || node.textContent || '').slice(0, 90) || 'Contenido'; const bodyText = normalizeText(clone.textContent || ''); return { type: 'blurb', title, image: image ? image.getAttribute('src') || '' : '', body: bodyText ? `<p>${escapeHtml(bodyText)}</p>` : '', label: title }; }
+function createToggleModule(node) { const heading = node.querySelector('summary,h3,h4,h5,strong'); const clone = node.cloneNode(true); const cloneHeading = clone.querySelector('summary,h3,h4,h5,strong'); if (cloneHeading) cloneHeading.remove(); const title = normalizeText((heading && heading.textContent) || 'Pregunta'); const bodyText = normalizeText(clone.textContent || ''); return { type: 'toggle', title, body: bodyText ? `<p>${escapeHtml(bodyText)}</p>` : '<p></p>', label: title }; }
+function createDividerModule() { return { type: 'divider', label: 'Separador' }; }
+function createContactFormModule(node) { const fields = Array.from(node.querySelectorAll('input,textarea,select')).filter((field) => !['submit','button','hidden'].includes((field.getAttribute('type') || '').toLowerCase())).map((field, index) => ({ id: (field.getAttribute('name') || field.getAttribute('id') || `field_${index + 1}`).replace(/[^a-z0-9_]/gi, '_'), title: field.getAttribute('placeholder') || field.getAttribute('name') || field.getAttribute('id') || `Campo ${index + 1}`, type: tagName(field) === 'textarea' ? 'text' : 'input' })); return { type: 'contact_form', title: 'Formulario', fields: fields.length ? fields : [{ id: 'name', title: 'Nombre', type: 'input' }, { id: 'phone', title: 'Teléfono', type: 'input' }, { id: 'message', title: 'Mensaje', type: 'text' }], label: 'Formulario' }; }
+function parseModules(container, mode = 'balanced', depth = 0) { const modules = []; for (const node of children(container)) { const tag = tagName(node); if (tag === 'hr') { modules.push(createDividerModule()); continue; } if (tag === 'details') { modules.push(createToggleModule(node)); continue; } if (tag === 'form') { modules.push(createContactFormModule(node)); continue; } if (isButtonLike(node)) { modules.push(createButtonModule(node)); continue; } if (tag === 'img') { modules.push(createImageModule(node)); continue; } if (['h1','h2','h3','h4','h5','h6','p','blockquote'].includes(tag)) { const module = createTextModule(node); if (module) modules.push(module); continue; } if (['ul','ol'].includes(tag)) { Array.from(node.querySelectorAll(':scope > li')).forEach((li) => { const module = createTextFromText(li.textContent || '', 'li'); if (module) modules.push(module); }); continue; } const directButtons = children(node).filter(isButtonLike); if (directButtons.length && normalizeText(node.textContent || '').length < 320) { const textClone = node.cloneNode(true); Array.from(textClone.querySelectorAll('a,button')).forEach((item) => item.remove()); const module = createTextFromText(textClone.textContent || '', 'p'); if (module) modules.push(module); directButtons.forEach((button) => modules.push(createButtonModule(button))); continue; } const onlyImage = children(node).length === 1 && tagName(children(node)[0]) === 'img'; if (onlyImage) { modules.push(createImageModule(children(node)[0])); continue; } const nestedCount = node.querySelectorAll('h1,h2,h3,h4,h5,h6,p,ul,ol,a,button,img,details,form,hr,blockquote').length; if (isCardLike(node) && mode !== 'editable') { modules.push(createBlurbModule(node)); continue; } if ((nestedCount > 0 && depth < 14) || isLayoutGroup(node)) { const nested = parseModules(node, mode, depth + 1); if (nested.length) { modules.push(...nested); continue; } } const fallback = createTextFromText(node.textContent || '', 'p'); if (fallback) modules.push(fallback); } return modules.length ? modules : [createTextFromText(container.textContent || '', 'p')].filter(Boolean); }
+function extractCss(doc) { const inlineCss = Array.from(doc.querySelectorAll('style')).map((node) => node.textContent || '').filter(Boolean); const external = Array.from(doc.querySelectorAll('link[rel="stylesheet"]')).map((node) => `/* External CSS: ${node.getAttribute('href') || ''} */`); return [...external, ...inlineCss].join('\n\n'); }
+function detectSections(doc) { const semantic = Array.from(doc.querySelectorAll('body > header, body > main, main > section, body > section, body > footer')).filter((node) => !shouldSkipNode(node)); if (semantic.length) return semantic; return doc.body ? [doc.body] : []; }
+function getColumnType(count) { return ({ 1: '4_4', 2: '1_2', 3: '1_3', 4: '1_4', 5: '1_5', 6: '1_6' })[Math.min(Math.max(count, 1), 6)] || '4_4'; }
+function makeColumn(nodes, count, index, mode) { const modules = nodes.flatMap((node) => parseModules(node, mode, 0)).map((module) => ({ ...module, column: index + 1 })); return { type: getColumnType(count), modules }; }
+function detectColumnsForRow(container, mode) { const direct = children(container); const nestedGroup = direct.find((node) => isLayoutGroup(node) && children(node).length >= 2 && children(node).length <= 6); if (nestedGroup) { const groupChildren = children(nestedGroup); return groupChildren.map((node, index) => makeColumn([node], groupChildren.length, index, mode)).filter((column) => column.modules.length); } const directColumns = direct.filter((node) => /col|column|card|item|feature|service|product|step/.test(getClasses(node).join(' ').toLowerCase())); if (directColumns.length >= 2 && directColumns.length <= 6) return directColumns.map((node, index) => makeColumn([node], directColumns.length, index, mode)).filter((column) => column.modules.length); return [makeColumn([container], 1, 0, mode)].filter((column) => column.modules.length); }
+function convertHtml(html, mode = 'balanced') { const doc = new DOMParser().parseFromString(html, 'text/html'); const css = extractCss(doc); const title = normalizeText(doc.querySelector('title')?.textContent || state.fileName || 'Divi Layout'); const sections = detectSections(doc).map((section, index) => { const columns = detectColumnsForRow(section, mode); return { id: section.id || `section-${index + 1}`, tag: tagName(section), classes: getClasses(section), rows: [{ columns: columns.length, columnsData: columns, modules: columns.flatMap((column) => column.modules) }] }; }).filter((section) => section.rows.some((row) => row.modules.length)); const layout = { version: '1.0.0-native-no-code', title, fileName: state.fileName, mode, generatedAt: new Date().toISOString(), sections }; const shortcodes = renderShortcodes(layout); const diviJson = { context: 'et_builder', data: { [IMPORT_ID]: shortcodes }, presets: {}, images: {} }; return { layout, css, shortcodes, diviJson, validation: validateOutput(shortcodes, diviJson), previewHtml: renderPreview(layout, css) }; }
+function renderModuleShortcode(module) { if (module.type === 'text') return shortcode('et_pb_text', { _builder_version: DIVI_VERSION, global_colors_info: '{}' }, module.html || ''); if (module.type === 'button') return shortcode('et_pb_button', { button_url: module.url || '#', url_new_window: module.target === '_blank' ? 'on' : 'off', button_text: module.text || 'Botón', _builder_version: DIVI_VERSION, global_colors_info: '{}' }, ''); if (module.type === 'image') return shortcode('et_pb_image', { src: module.src || '', alt: module.alt || '', title_text: module.title || module.alt || '', _builder_version: DIVI_VERSION, global_colors_info: '{}' }, ''); if (module.type === 'blurb') return shortcode('et_pb_blurb', { title: module.title || '', image: module.image || '', _builder_version: DIVI_VERSION, global_colors_info: '{}' }, module.body || ''); if (module.type === 'toggle') return shortcode('et_pb_toggle', { title: module.title || '', open: 'off', _builder_version: DIVI_VERSION, global_colors_info: '{}' }, module.body || ''); if (module.type === 'divider') return shortcode('et_pb_divider', { _builder_version: DIVI_VERSION, global_colors_info: '{}' }, ''); if (module.type === 'contact_form') { const fields = (module.fields || []).map((field) => shortcode('et_pb_contact_field', { field_id: field.id, field_title: field.title, field_type: field.type, required_mark: 'on', _builder_version: DIVI_VERSION, global_colors_info: '{}' }, '')).join('\n'); return shortcode('et_pb_contact_form', { title: module.title || 'Formulario', submit_button_text: 'Enviar', _builder_version: DIVI_VERSION, global_colors_info: '{}' }, `\n${fields}\n`); } return shortcode('et_pb_text', { _builder_version: DIVI_VERSION, global_colors_info: '{}' }, `<p>${escapeHtml(module.label || '')}</p>`); }
+function renderShortcodes(layout) { return layout.sections.map((section) => { const rows = section.rows.map((row) => { const columns = row.columnsData || [{ type: '4_4', modules: row.modules || [] }]; const body = columns.map((column) => shortcode('et_pb_column', { type: column.type || getColumnType(columns.length), _builder_version: DIVI_VERSION, global_colors_info: '{}' }, `\n${(column.modules || []).map(renderModuleShortcode).join('\n')}\n`)).join('\n'); return shortcode('et_pb_row', { column_structure: columns.map((column) => column.type || getColumnType(columns.length)).join(','), _builder_version: DIVI_VERSION, global_colors_info: '{}' }, `\n${body}\n`); }).join('\n'); return shortcode('et_pb_section', { fb_built: '1', _builder_version: DIVI_VERSION, global_colors_info: '{}' }, `\n${rows}\n`); }).join('\n\n'); }
+function validateOutput(shortcodes, diviJson) { const checks = { contextEtBuilder: diviJson.context === 'et_builder', hasData: !!Object.keys(diviJson.data || {}).length, hasSection: shortcodes.includes('[et_pb_section'), hasRow: shortcodes.includes('[et_pb_row'), hasColumn: shortcodes.includes('[et_pb_column'), noCodeModules: !shortcodes.includes('[et_pb_' + 'code'), nativeModules: /\[et_pb_(text|button|image|blurb|toggle|divider|contact_form)/.test(shortcodes) }; return { ok: Object.values(checks).every(Boolean), checks }; }
+function renderPreviewModule(module) { if (module.type === 'text') return module.html || ''; if (module.type === 'button') return `<p><a class="dm-button" href="${escapeAttr(module.url || '#')}">${escapeHtml(module.text || 'Botón')}</a></p>`; if (module.type === 'image') return `<img src="${escapeAttr(module.src || '')}" alt="${escapeAttr(module.alt || '')}">`; if (module.type === 'blurb') return `<article class="dm-blurb">${module.image ? `<img src="${escapeAttr(module.image)}" alt="">` : ''}<h3>${escapeHtml(module.title || '')}</h3><div>${module.body || ''}</div></article>`; if (module.type === 'toggle') return `<details><summary>${escapeHtml(module.title || '')}</summary>${module.body || ''}</details>`; if (module.type === 'divider') return '<hr>'; if (module.type === 'contact_form') return `<form class="dm-form">${(module.fields || []).map((field) => `<input placeholder="${escapeAttr(field.title)}">`).join('')}<button type="button">Enviar</button></form>`; return ''; }
+function renderPreview(layout, css) { const body = layout.sections.map((section) => `<section id="${escapeAttr(section.id)}" class="${escapeAttr(['dm-section', ...(section.classes || [])].join(' '))}">${section.rows.map((row) => `<div class="dm-row" data-columns="${(row.columnsData || []).length || 1}">${(row.columnsData || [{ modules: row.modules || [] }]).map((column) => `<div class="dm-column">${(column.modules || []).map(renderPreviewModule).join('\n')}</div>`).join('\n')}</div>`).join('\n')}</section>`).join('\n'); return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css || ''}\n.dm-section{padding:48px 24px}.dm-row{max-width:1180px;margin:auto;display:grid;gap:24px}.dm-row[data-columns="2"]{grid-template-columns:repeat(2,1fr)}.dm-row[data-columns="3"]{grid-template-columns:repeat(3,1fr)}.dm-row[data-columns="4"]{grid-template-columns:repeat(4,1fr)}.dm-button{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:13px 18px;background:#ff5a1f;color:#fff;text-decoration:none;font-weight:900}.dm-blurb{border:1px solid #e9edf1;border-radius:22px;padding:20px;background:#fff;margin:12px 0}.dm-blurb img,img{max-width:100%;height:auto}@media(max-width:900px){.dm-row{grid-template-columns:1fr!important}}</style></head><body>${body}</body></html>`; }
+function renderStructure() { let panel = document.getElementById('structure-preview-card'); if (!panel) { panel = document.createElement('article'); panel.id = 'structure-preview-card'; panel.className = 'preview-card'; panel.innerHTML = '<div class="preview-title"><strong>Estructura Divi</strong><span id="structure-stats"></span></div><div id="structure-tree" style="padding:16px;overflow:auto;max-height:620px;font-family:system-ui,sans-serif;font-size:13px"></div>'; document.querySelector('.preview-grid')?.appendChild(panel); } const tree = document.getElementById('structure-tree'); const stats = document.getElementById('structure-stats'); if (!tree || !state.result) return; let html = ''; let count = 0; state.result.layout.sections.forEach((section, si) => { html += `<div style="border:2px solid #6d28d9;border-radius:14px;margin-bottom:14px;background:#f8f5ff"><div style="background:#6d28d9;color:white;padding:10px 12px;font-weight:800">SECCIÓN ${si + 1} · ${escapeHtml(section.id)}</div><div style="padding:12px">`; section.rows.forEach((row, ri) => { html += `<div style="border:2px solid #16a34a;border-radius:12px;padding:10px;margin-bottom:10px;background:#f0fdf4"><strong>Fila ${ri + 1}</strong> · ${(row.columnsData || []).length} columna(s)`; (row.columnsData || []).forEach((column, ci) => { html += `<div style="border:1px solid #86efac;border-radius:10px;padding:10px;margin-top:10px;background:#fff"><strong>Columna ${ci + 1}</strong> · ${escapeHtml(column.type)}`; (column.modules || []).forEach((module, mi) => { count += 1; html += `<div style="border:1px solid #e5e7eb;border-radius:10px;padding:8px;margin-top:8px;background:#fff7ed"><strong>${mi + 1}. et_pb_${module.type}</strong> · ${escapeHtml(module.label || module.title || module.text || '')}</div>`; }); html += '</div>'; }); html += '</div>'; }); html += '</div></div>'; }); tree.innerHTML = html; stats.textContent = `${state.result.layout.sections.length} secciones · ${count} módulos · 0 code`; }
+function renderPreviews() { originalPreview.srcdoc = state.originalHtml; createdPreview.srcdoc = state.result.previewHtml; originalSize.textContent = `${Math.round(state.originalHtml.length / 1024)} KB`; const sections = state.result.layout.sections.length; const modules = state.result.layout.sections.reduce((sum, section) => sum + section.rows.reduce((rowSum, row) => rowSum + row.modules.length, 0), 0); createdStats.textContent = `${sections} secciones · ${modules} módulos · ${state.result.validation.ok ? 'nativo OK' : 'revisar'}`; renderStructure(); }
+function setOutputTab(tab) { state.activeTab = tab; document.querySelectorAll('.tab').forEach((item) => item.classList.toggle('active', item.dataset.tab === tab)); if (!state.result) return; if (tab === 'shortcodes') outputCode.value = state.result.shortcodes; if (tab === 'json') outputCode.value = JSON.stringify(state.result.diviJson, null, 2); if (tab === 'css') outputCode.value = state.result.css || '/* No se ha detectado CSS */'; }
+function downloadText(name, content, type = 'text/plain') { const blob = new Blob([content], { type }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = name; document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url); }
+function baseName() { return (outputName.value || config.defaultOutputPrefix || 'divi-layout').replace(/[^a-z0-9-_]+/gi, '-').replace(/^-+|-+$/g, '') || 'divi-layout'; }
+async function handleFile(file) { if (!file) return; state.fileName = file.name; state.originalHtml = await file.text(); state.result = null; fileMeta.textContent = `${file.name} · ${Math.round(file.size / 1024)} KB`; outputName.value = file.name.replace(/\.(html|htm)$/i, '') || config.defaultOutputPrefix || 'divi-layout'; controlsPanel.hidden = false; resultPanel.hidden = true; originalPreview.srcdoc = state.originalHtml; }
+function runConversion() { if (!state.originalHtml) return; state.result = convertHtml(state.originalHtml, conversionMode.value); resultPanel.hidden = false; renderPreviews(); setOutputTab('shortcodes'); }
+function resetApp() { state.fileName = ''; state.originalHtml = ''; state.result = null; fileInput.value = ''; fileMeta.textContent = 'Sin archivo cargado.'; controlsPanel.hidden = true; resultPanel.hidden = true; originalPreview.srcdoc = ''; createdPreview.srcdoc = ''; outputCode.value = ''; document.getElementById('structure-preview-card')?.remove(); }
+accessForm.addEventListener('submit', handleAccess); fileInput.addEventListener('change', (event) => handleFile(event.target.files?.[0])); dropzone.addEventListener('dragover', (event) => { event.preventDefault(); dropzone.classList.add('is-dragover'); }); dropzone.addEventListener('dragleave', () => dropzone.classList.remove('is-dragover')); dropzone.addEventListener('drop', (event) => { event.preventDefault(); dropzone.classList.remove('is-dragover'); handleFile(event.dataTransfer.files?.[0]); }); convertBtn.addEventListener('click', runConversion); resetBtn.addEventListener('click', resetApp); document.querySelectorAll('.tab').forEach((button) => button.addEventListener('click', () => setOutputTab(button.dataset.tab))); el('download-shortcodes').addEventListener('click', () => { if (state.result) downloadText(`${baseName()}.divi-shortcodes.txt`, state.result.shortcodes); }); el('download-json').addEventListener('click', () => { if (state.result) downloadText(`${baseName()}.divi-import.json`, JSON.stringify(state.result.diviJson, null, 2), 'application/json'); }); el('download-css').addEventListener('click', () => { if (state.result) downloadText(`${baseName()}.css`, state.result.css || '', 'text/css'); }); el('download-preview').addEventListener('click', () => { if (state.result) downloadText(`${baseName()}.preview.html`, state.result.previewHtml, 'text/html'); }); if (!config.accessGateEnabled || sessionStorage.getItem('divi-manager-unlocked') === '1') unlockApp(); window.DIVI_MANAGER_APP = { getState: () => state, convertHtml };
