@@ -1,0 +1,12 @@
+VALIDACIÓN CASOS DE ÉXITO ENFOCADA · DIVI 4
+Estado: CORRECTO
+Secciones: 11
+Módulos Slider: 1
+Slides de casos: 7
+Módulos Vídeo: 3
+Testimonios: 3
+Formularios: 1
+Módulos Texto: 0
+Módulos Código: 0
+Todos los módulos incluyen clase CSS editable.
+Sin mojibake ni HTML escapado visible.
