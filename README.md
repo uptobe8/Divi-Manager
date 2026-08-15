@@ -1,59 +1,22 @@
 # Divi Manager
 
-Pipeline para convertir diseños HTML en estructuras reutilizables para Divi.
+Herramienta local y estática para Divi 4 con dos únicas funciones:
 
-No es un conversor mágico HTML → Divi perfecto. Convierte HTML real en una base editable: estructura, contenido y estilos separados.
-
-## Qué hace
-
-- Lee archivos `.html` desde una carpeta.
-- Detecta secciones, textos, botones, imágenes, columnas y cards.
-- Genera shortcodes compatibles con Divi Builder clásico / Divi 4.
-- Genera un JSON intermedio preparado para mapear después a Divi 5.
-- Extrae CSS básico.
-- Mantiene bloques complejos como módulo `Code` para no romper diseño.
+1. **HTML → JSON Divi 4 nativo editable**: reconstruye el HTML como `et_pb_section > et_pb_row > et_pb_column > módulos nativos`, con estilos responsive de desktop, tablet y móvil. El flujo HTML no usa `et_pb_code`.
+2. **Reparar JSON Divi 4**: conserva el layout existente y corrige responsive, anchos problemáticos, imágenes y fallos CSS comunes.
 
 ## Uso
 
+Abrir `index.html` en un servidor estático o desplegar el repositorio en GitHub Pages/hosting estático.
+
+Todo el procesamiento se realiza en el navegador. No existe backend ni dependencia de Convex.
+
+## Base Divi 4
+
+La lógica se ha construido a partir del conocimiento operativo y patrones reales del pack de referencia del proyecto: 1.320 secciones Divi, layouts reales y documentación de Divi 4. La regla de salida para páginas es `context: et_builder` y se priorizan módulos nativos editables.
+
+## Validación
+
 ```bash
-npm install
-npm run convert
+npm run check
 ```
-
-Convertir carpeta propia:
-
-```bash
-node src/cli.js convert ./input-html ./dist
-```
-
-## Salidas
-
-Por cada HTML genera:
-
-- `*.divi-shortcodes.txt`
-- `*.layout.json`
-- `*.css`
-
-## Mapeo inicial
-
-| HTML | Divi |
-|---|---|
-| `<section>` | Section |
-| contenedor | Row |
-| `h1/h2/h3/p` | Text Module |
-| enlace tipo botón | Button Module |
-| `<img>` | Image Module |
-| cards | Blurb / Text group |
-| bloque no reconocido | Code Module |
-
-## Repos base investigados
-
-- `oaris-dev/diviops`: automatización Divi 5 desde WordPress.
-- `Elathi/Divi-5-Manager`: layouts JSON Divi 5.
-- `Automattic/divi-migration-tools`: referencia de shortcodes Divi.
-- `chubes4/html-to-blocks-converter`: referencia de parsing HTML → bloques.
-- `cjsimon2/Divi5-ToolKit`: CSS, responsive y compatibilidad Divi 5.
-
-## Estado
-
-Versión inicial operativa. La salida Divi 4 por shortcodes es estable. El JSON es intermedio, no schema oficial definitivo de Divi 5.

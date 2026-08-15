@@ -1,22 +1,11 @@
 {
   "name": "divi-manager",
-  "version": "0.1.0",
-  "description": "Pipeline HTML to Divi shortcodes and intermediate layouts.",
-  "type": "module",
-  "main": "src/cli.js",
-  "bin": {
-    "divi-manager": "src/cli.js"
-  },
+  "version": "1.0.0",
+  "private": true,
+  "description": "HTML to editable Divi 4 JSON and Divi 4 JSON responsive/CSS repair.",
   "scripts": {
-    "convert": "node src/cli.js convert ./examples ./dist",
-    "convert:demo": "node src/cli.js convert ./examples ./dist",
-    "check": "node src/cli.js convert ./examples ./dist"
+    "check": "node --check core.js && node --check html-converter.js && node --check json-repair.js && node --check ui.js && node --check divi4-knowledge.js"
   },
-  "dependencies": {
-    "cheerio": "^1.0.0"
-  },
-  "engines": {
-    "node": ">=18"
-  },
+  "engines": { "node": ">=18" },
   "license": "MIT"
 }

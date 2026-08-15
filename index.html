@@ -2,148 +2,68 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Divi Manager · HTML a Divi</title>
-  <meta name="description" content="App estática para convertir HTML a estructura Divi con vista previa comparativa.">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Divi Manager</title>
+  <meta name="description" content="HTML a Divi 4 nativo editable y reparación responsive/CSS de JSON Divi 4.">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <main class="app-shell">
-    <section id="access-screen" class="access-screen">
-      <div class="access-card">
-        <p class="eyebrow">HTML → Divi Theme</p>
-        <h1>Divi Manager</h1>
-        <p class="muted">Sube un HTML, revisa la vista original, revisa la versión convertida y descarga el resultado.</p>
-        <form id="access-form" class="access-form">
-          <label for="access-key">Clave de acceso</label>
-          <input id="access-key" type="password" autocomplete="current-password" placeholder="Introduce tu clave">
-          <button type="submit">Entrar</button>
-          <p id="access-error" class="error" hidden>Clave incorrecta.</p>
-        </form>
+  <main class="shell">
+    <header class="hero">
+      <p class="eyebrow">DIVI 4</p>
+      <h1>Divi Manager</h1>
+      <p>Dos funciones. Nada más.</p>
+    </header>
+
+    <nav class="tabs" aria-label="Funciones">
+      <button class="tab is-active" data-mode="html" type="button">HTML → Divi 4 editable</button>
+      <button class="tab" data-mode="json" type="button">Reparar JSON Divi 4</button>
+    </nav>
+
+    <section class="panel" data-panel="html">
+      <div class="panel-copy">
+        <span class="step">01</span>
+        <div>
+          <h2>Sube un HTML</h2>
+          <p>Reconstruye la página con secciones, filas, columnas y módulos nativos editables de Divi 4.</p>
+        </div>
+      </div>
+      <label class="dropzone" for="html-file">
+        <input id="html-file" type="file" accept=".html,.htm,text/html">
+        <strong>Seleccionar HTML</strong>
+        <span>o arrástralo aquí</span>
+      </label>
+      <div class="result" id="html-result" hidden>
+        <div><strong id="html-status">Preparado</strong><span id="html-meta"></span></div>
+        <button id="html-download" type="button">Descargar JSON Divi 4</button>
       </div>
     </section>
 
-    <section id="app-screen" class="app-screen" hidden>
-      <header class="app-header">
+    <section class="panel" data-panel="json" hidden>
+      <div class="panel-copy">
+        <span class="step">02</span>
         <div>
-          <p class="eyebrow">Divi Manager</p>
-          <h1>Convertidor HTML a Divi</h1>
-          <p class="muted">La conversión se ejecuta en tu navegador. El HTML no se sube a ningún servidor.</p>
+          <h2>Sube un JSON Divi 4</h2>
+          <p>Corrige responsive, desbordes, tamaños problemáticos y CSS conflictivo sin desmontar el layout.</p>
         </div>
-        <div class="header-actions">
-          <button id="reset-btn" type="button" class="ghost">Nuevo archivo</button>
-        </div>
-      </header>
-
-      <section class="upload-panel">
-        <div class="dropzone" id="dropzone">
-          <input id="file-input" type="file" accept=".html,.htm,text/html">
-          <div>
-            <strong>Sube aquí tu HTML</strong>
-            <p>Arrastra el archivo o pulsa para seleccionarlo.</p>
-          </div>
-        </div>
-        <div class="file-meta" id="file-meta">Sin archivo cargado.</div>
-      </section>
-
-      <section class="controls-panel" id="controls-panel" hidden>
-        <div>
-          <label for="output-name">Nombre de salida</label>
-          <input id="output-name" type="text" value="divi-layout">
-        </div>
-        <div>
-          <label for="conversion-mode">Modo</label>
-          <select id="conversion-mode">
-            <option value="balanced">Equilibrado: módulos nativos primero</option>
-            <option value="editable">Editable: intenta descomponer más módulos Divi</option>
-            <option value="safe">Seguro: conserva HTML en Text Module</option>
-            <option value="visual">Fidelidad visual: conserva HTML en Code Module</option>
-          </select>
-        </div>
-        <button id="convert-btn" type="button">Convertir</button>
-      </section>
-
-      <section id="result-panel" class="result-panel" hidden>
-        <div class="result-header">
-          <div>
-            <h2>Vista previa comparativa</h2>
-            <p class="muted">Izquierda: HTML original. Derecha: versión creada desde la estructura convertida.</p>
-          </div>
-          <div class="download-actions">
-            <button id="download-shortcodes" type="button">Descargar shortcodes</button>
-            <button id="download-json" type="button" class="ghost">Descargar JSON</button>
-            <button id="download-css" type="button" class="ghost">Descargar CSS</button>
-            <button id="download-preview" type="button" class="ghost">Descargar preview</button>
-            <button id="download-zip" type="button" class="ghost">Descargar ZIP completo</button>
-          </div>
-        </div>
-
-        <div class="preview-grid">
-          <article class="preview-card">
-            <div class="preview-title">
-              <strong>Original</strong>
-              <span id="original-size"></span>
-            </div>
-            <iframe id="original-preview" title="Vista previa original" sandbox="allow-same-origin"></iframe>
-          </article>
-
-          <article class="preview-card">
-            <div class="preview-title">
-              <strong>Creada para Divi</strong>
-              <span id="created-stats"></span>
-            </div>
-            <iframe id="created-preview" title="Vista previa creada" sandbox="allow-same-origin"></iframe>
-          </article>
-        </div>
-
-        <div class="code-tabs">
-          <button class="tab active" data-tab="shortcodes">Shortcodes Divi</button>
-          <button class="tab" data-tab="json">JSON</button>
-          <button class="tab" data-tab="css">CSS</button>
-        </div>
-        <textarea id="output-code" readonly spellcheck="false"></textarea>
-      </section>
+      </div>
+      <label class="dropzone" for="json-file">
+        <input id="json-file" type="file" accept=".json,application/json">
+        <strong>Seleccionar JSON</strong>
+        <span>o arrástralo aquí</span>
+      </label>
+      <div class="result" id="json-result" hidden>
+        <div><strong id="json-status">Preparado</strong><span id="json-meta"></span></div>
+        <button id="json-download" type="button">Descargar JSON corregido</button>
+      </div>
     </section>
+
+    <p class="footnote">Procesamiento local en el navegador. Los archivos no se envían a un servidor.</p>
   </main>
-
-  <script>
-    window.DIVI_MANAGER_BLOCKED_RUNTIME_FIXES = ['exact-conversion-fix.js', 'native-fixes.js', 'access-fix.js'];
-    (function () {
-      const blocked = window.DIVI_MANAGER_BLOCKED_RUNTIME_FIXES;
-      const appendChild = Element.prototype.appendChild;
-      Element.prototype.appendChild = function (node) {
-        if (node && node.tagName === 'SCRIPT' && blocked.some((name) => String(node.src || '').includes(name))) {
-          return node;
-        }
-        return appendChild.call(this, node);
-      };
-    })();
-  </script>
-  <script src="config.js?v=4"></script>
-  <script src="app.js?v=4"></script>
-  <script src="divi-output-modes.js?v=1"></script>
-  <script>
-    (function () {
-      let lastConversion = null;
-      const baseConvertHtml = window.convertHtml;
-      if (typeof baseConvertHtml === 'function') {
-        window.convertHtml = function (html, mode) {
-          lastConversion = baseConvertHtml(html, mode);
-          return lastConversion;
-        };
-      }
-
-      const baseRenderPreviews = window.renderPreviews;
-      if (typeof baseRenderPreviews === 'function') {
-        window.renderPreviews = function () {
-          baseRenderPreviews();
-          const createdPreview = document.getElementById('created-preview');
-          if (createdPreview && lastConversion && lastConversion.previewHtml) {
-            createdPreview.srcdoc = lastConversion.previewHtml;
-          }
-        };
-      }
-    })();
-  </script>
+  <script src="divi4-knowledge.js"></script>
+  <script src="core.js"></script>
+  <script src="html-converter.js"></script>
+  <script src="json-repair.js"></script>
+  <script src="ui.js"></script>
 </body>
 </html>
