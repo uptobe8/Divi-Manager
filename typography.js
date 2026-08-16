@@ -32,9 +32,9 @@
 
   DM.isDesignDisplayAttrs=(attrs={},content='')=>{
     const hint=`${attrs.module_class||''} ${attrs.admin_label||''}`.toLowerCase();
+    const text=plainText(content),compact=text.length>0&&text.length<=26&&text.split(/\s+/).length<=3;
     if(/intro-number|editorial|oversize|oversized|giant|mega[-_ ]?word|big[-_ ]?word|display[-_ ]?word|wordmark/.test(hint)) return true;
-    const text=plainText(content);
-    const compact=text.length>0&&text.length<=26&&text.split(/\s+/).length<=3;
+    if(compact&&/(?:^|\s)(?:número|numero|nãºmero)(?:\s|$)/.test(hint)) return true;
     const large=Object.entries(attrs).some(([k,v])=>/font_size$/.test(k)&&!/_tablet$|_phone$/.test(k)&&(/^\d+(?:\.\d+)?px$/.test(v)&&Number(v.slice(0,-2))>80));
     return compact&&large;
   };
