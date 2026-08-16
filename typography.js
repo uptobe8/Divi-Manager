@@ -98,17 +98,27 @@
     return `.dm-typo-h1 h1{font-family:${family}!important;font-weight:${h1w}!important;font-size:${h1s}!important;line-height:${h1l}!important;letter-spacing:${h1ls}!important;text-transform:uppercase!important}.dm-typo-h2 h2{font-family:${family}!important;font-weight:${h2w}!important;font-size:${h2s}!important;line-height:${h2l}!important;letter-spacing:${h2ls}!important;text-transform:uppercase!important}.dm-typo-h3 h3{font-family:${family}!important;font-weight:${h3w}!important;font-size:${h3s}!important}.dm-typo-lead,.dm-typo-lead p{font-family:${family}!important;font-weight:${leadw}!important;font-size:${leads}!important;line-height:${leadl}!important}.dm-typo-body,.dm-typo-body p,.dm-typo-body li{font-family:${family}!important;font-weight:${bodyw}!important;font-size:${bodys}!important}.dm-typo-kicker,.dm-typo-kicker p{font-family:${family}!important;font-weight:${kw}!important;font-size:${ks}!important;letter-spacing:${kls}!important;text-transform:uppercase!important}@media(max-width:767px){.dm-typo-h1 h1{font-size:${h1m}!important}.dm-typo-h2 h2{font-size:${h2m}!important}}`;
   }
 
-  function typographySection(css){
-    const code=DM.shortcode('et_pb_code',{admin_label:'DM · Reglas tipográficas',module_class:'dm-typography-rules',_builder_version:K.builderVersion,global_colors_info:'{}'},`<style id="dm-typography-rules">${css}</style>`);
-    const col=DM.shortcode('et_pb_column',{type:'4_4',_builder_version:K.builderVersion,global_colors_info:'{}'},code);
-    const row=DM.shortcode('et_pb_row',{admin_label:'DM · Tipografía',_builder_version:K.builderVersion,global_colors_info:'{}'},col);
-    return DM.shortcode('et_pb_section',{fb_built:'1',admin_label:'DM · Tipografía',module_class:'dm-typography-config',_builder_version:K.builderVersion,custom_padding:'0px|0px|0px|0px|true|true',global_colors_info:'{}'},row);
+  function typographyCode(css){
+    return DM.shortcode('et_pb_code',{admin_label:'DM · Reglas tipográficas',module_class:'dm-typography-rules',_builder_version:K.builderVersion,global_colors_info:'{}'},`<style id="dm-typography-rules">${css}</style>`);
   }
 
   function upsertTypographyCss(input,css){
     const marker=/<style id="dm-typography-rules">[\s\S]*?<\/style>/i;
     if(marker.test(input)) return input.replace(marker,`<style id="dm-typography-rules">${css}</style>`);
-    return `${typographySection(css)}\n${input}`;
+
+    const style=`<style id="dm-typography-rules">${css}</style>`;
+    const firstCodeClose=input.indexOf('[/et_pb_code]');
+    if(firstCodeClose>=0){
+      return input.slice(0,firstCodeClose)+style+input.slice(firstCodeClose);
+    }
+
+    const firstColumnClose=input.indexOf('[/et_pb_column]');
+    if(firstColumnClose>=0){
+      const code=typographyCode(css);
+      return input.slice(0,firstColumnClose)+code+input.slice(firstColumnClose);
+    }
+
+    return input;
   }
 
   DM.applyHeadingAndTypography=(input,options={})=>{
