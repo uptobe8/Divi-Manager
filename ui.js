@@ -43,6 +43,21 @@
     };
   }
 
+  function plural(n,one,many){return n===1?one:many;}
+
+  function explainJsonResult(s,customTypography){
+    const parts=[];
+    if(s.headings>0) parts.push(`${s.headings} ${plural(s.headings,'título reorganizado','títulos reorganizados')} para respetar 1 H1 y el orden H2/H3`);
+    if(s.responsive>0) parts.push(`${s.responsive} ${plural(s.responsive,'ajuste responsive corregido','ajustes responsive corregidos')}`);
+    if(s.widths>0) parts.push(`${s.widths} ${plural(s.widths,'ancho problemático corregido','anchos problemáticos corregidos')}`);
+    if(s.images>0) parts.push(`${s.images} ${plural(s.images,'ajuste de imagen corregido','ajustes de imagen corregidos')}`);
+    if(s.css>0) parts.push(`${s.css} ${plural(s.css,'problema CSS corregido','problemas CSS corregidos')}`);
+    if(customTypography) parts.push('tipografía personalizada aplicada');
+    else if(s.typography>0) parts.push(`${s.typography} ${plural(s.typography,'tamaño de texto problemático corregido','tamaños de texto problemáticos corregidos')}`);
+    else parts.push('tipografía original conservada');
+    return parts.join(' · ');
+  }
+
   async function html(file){
     const box=$('#html-result');
     box.hidden=false;
@@ -54,7 +69,9 @@
       const r=await DM.convertHtmlFile(file);
       DM.state.html={...r,name:`${DM.cleanName(file.name)}.divi4.json`};
       $('#html-status').textContent='JSON Divi 4 preparado';
-      $('#html-meta').textContent=`${r.sections} secciones · ${r.modules} módulos editables · jerarquía H corregida ${r.headingChanges} veces${r.typographyApplied?' · tipografía personalizada aplicada':''}`;
+      const h=r.headingChanges>0?`${r.headingChanges} ${plural(r.headingChanges,'título reorganizado','títulos reorganizados')} para respetar 1 H1 → H2 → H3`:'jerarquía H1 → H2 → H3 correcta';
+      const t=r.typographyApplied?'tipografía personalizada aplicada':'tipografía del HTML conservada';
+      $('#html-meta').textContent=`${r.sections} secciones · ${r.modules} módulos editables · ${h} · ${t}`;
       $('#html-download').disabled=false;
     }catch(e){
       error('html',e.message);
@@ -65,22 +82,23 @@
     const box=$('#json-result');
     box.hidden=false;
     $('#json-status').textContent='Revisando…';
-    $('#json-meta').textContent='Buscando problemas objetivos, jerarquizando H1/H2/H3 y conservando el resto.';
+    $('#json-meta').textContent='Comprobando el archivo sin modificar lo que ya está bien.';
     $('#json-download').disabled=true;
 
     try{
       DM.state.typography=typographyOptions();
+      const customTypography=DM.state.typography.enabled;
       const r=await DM.repairJsonFile(file);
       DM.state.json={...r,name:`${DM.cleanName(file.name)}.responsive-fixed.json`};
       const s=r.stats;
       const total=s.responsive+s.typography+s.widths+s.images+s.css+s.headings;
 
       if(total===0){
-        $('#json-status').textContent='No necesita cambios automáticos';
-        $('#json-meta').textContent='Responsive, CSS y jerarquía H ya están correctos. Se conserva intacto.';
+        $('#json-status').textContent='El archivo ya estaba correcto';
+        $('#json-meta').textContent=customTypography?'No había errores que reparar. Se ha aplicado la tipografía personalizada que elegiste.':'No había errores que reparar. He conservado la tipografía y el diseño originales.';
       }else{
-        $('#json-status').textContent='JSON corregido sin alterar lo que ya estaba bien';
-        $('#json-meta').textContent=`${total} ajustes · jerarquía H ${s.headings} · responsive ${s.responsive} · tipografía ${s.typography} · anchos ${s.widths} · imágenes ${s.images} · CSS ${s.css}`;
+        $('#json-status').textContent='Archivo preparado';
+        $('#json-meta').textContent=explainJsonResult(s,customTypography);
       }
 
       $('#json-download').disabled=false;
