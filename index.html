@@ -21,56 +21,22 @@
     </nav>
 
     <section class="type-settings">
-      <div class="type-head">
-        <div>
-          <strong>Tamaños de texto fijos</strong>
-          <span>Siempre se aplica la misma escala de tamaños que la página Oreja. No se puede modificar desde la app.</span>
-        </div>
-      </div>
-      <div class="type-head" style="margin-top:12px;padding-top:12px;border-top:1px solid #eceef2">
-        <div>
-          <strong>Jerarquía de títulos</strong>
-          <span>Siempre activa: 1 solo H1 → H2 → H3. Esta regla es independiente de los tamaños de Oreja.</span>
-        </div>
-      </div>
+      <div class="type-head"><div><strong>Tamaños de texto fijos</strong><span>Siempre se aplica la escala exacta definida para la web. No se puede modificar desde la app.</span></div></div>
+      <div class="type-head" style="margin-top:12px;padding-top:12px;border-top:1px solid #eceef2"><div><strong>Jerarquía de títulos</strong><span>Siempre activa: 1 solo H1 → H2 → H3.</span></div></div>
+      <div class="type-head" style="margin-top:12px;padding-top:12px;border-top:1px solid #eceef2"><div><strong>Diseño editorial protegido</strong><span>Palabras gigantes o efectos tipográficos intencionados no se reducen ni se parten para forzarlos a la escala normal.</span></div></div>
+      <div class="type-head" style="margin-top:12px;padding-top:12px;border-top:1px solid #eceef2"><div><strong>CTA automáticos</strong><span>Inserta los CTA de contacto a lo largo del scroll, evita duplicados y elige la variante clara u oscura según el fondo anterior.</span></div></div>
     </section>
 
     <section class="panel" data-panel="html">
-      <div class="panel-copy">
-        <span class="step">01</span>
-        <div>
-          <h2>Sube un HTML</h2>
-          <p>Reconstruye la página con secciones, filas, columnas y módulos nativos editables de Divi 4.</p>
-        </div>
-      </div>
-      <label class="dropzone" for="html-file">
-        <input id="html-file" type="file" accept=".html,.htm,text/html">
-        <strong>Seleccionar HTML</strong>
-        <span>o arrástralo aquí</span>
-      </label>
-      <div class="result" id="html-result" hidden>
-        <div><strong id="html-status">Preparado</strong><span id="html-meta"></span></div>
-        <button id="html-download" type="button">Descargar JSON Divi 4</button>
-      </div>
+      <div class="panel-copy"><span class="step">01</span><div><h2>Sube un HTML</h2><p>Reconstruye la página con secciones, filas, columnas y módulos nativos editables de Divi 4.</p></div></div>
+      <label class="dropzone" for="html-file"><input id="html-file" type="file" accept=".html,.htm,text/html"><strong>Seleccionar HTML</strong><span>o arrástralo aquí</span></label>
+      <div class="result" id="html-result" hidden><div><strong id="html-status">Preparado</strong><span id="html-meta"></span></div><button id="html-download" type="button">Descargar JSON Divi 4</button></div>
     </section>
 
     <section class="panel" data-panel="json" hidden>
-      <div class="panel-copy">
-        <span class="step">02</span>
-        <div>
-          <h2>Sube un JSON Divi 4</h2>
-          <p>Corrige responsive, desbordes, tamaños problemáticos y CSS conflictivo sin desmontar el layout.</p>
-        </div>
-      </div>
-      <label class="dropzone" for="json-file">
-        <input id="json-file" type="file" accept=".json,application/json">
-        <strong>Seleccionar JSON</strong>
-        <span>o arrástralo aquí</span>
-      </label>
-      <div class="result" id="json-result" hidden>
-        <div><strong id="json-status">Preparado</strong><span id="json-meta"></span></div>
-        <button id="json-download" type="button">Descargar JSON corregido</button>
-      </div>
+      <div class="panel-copy"><span class="step">02</span><div><h2>Sube un JSON Divi 4</h2><p>Corrige responsive, desbordes, tamaños problemáticos y CSS conflictivo sin desmontar el layout.</p></div></div>
+      <label class="dropzone" for="json-file"><input id="json-file" type="file" accept=".json,application/json"><strong>Seleccionar JSON</strong><span>o arrástralo aquí</span></label>
+      <div class="result" id="json-result" hidden><div><strong id="json-status">Preparado</strong><span id="json-meta"></span></div><button id="json-download" type="button">Descargar JSON corregido</button></div>
     </section>
 
     <p class="footnote">Procesamiento local en el navegador. Los archivos no se envían a un servidor.</p>
@@ -80,6 +46,7 @@
   <script src="typography.js"></script>
   <script src="html-converter.js"></script>
   <script src="json-repair.js"></script>
+  <script src="cta-injector.js"></script>
   <script src="postprocess.js"></script>
   <script src="ui.js"></script>
 </body>
