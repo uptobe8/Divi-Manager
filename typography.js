@@ -35,17 +35,55 @@
     attrs.module_class=classes.join(' ');
   }
 
-  function normalizeHeadings(input,stats){
-    let first=true,seenH2=false;
-    return String(input||'').replace(/<h([1-6])(\b[^>]*)>([\s\S]*?)<\/h\1>/gi,(full,level,extra,body)=>{
-      const original=Number(level);
-      let target;
-      if(first){target=1;first=false;}
-      else if(original<=2){target=2;seenH2=true;}
-      else if(!seenH2){target=2;seenH2=true;}
-      else target=3;
-      if(original!==target) stats.headings++;
-      return `<h${target}${extra}>${body}</h${target}>`;
+  function headingPrefix(level){
+    return level===1?'header':`header_${level}`;
+  }
+
+  function belongsToHeading(key,level){
+    if(level===1) return /^header_(?![2-6]_)/.test(key);
+    return new RegExp(`^header_${level}_`).test(key);
+  }
+
+  function copyHeadingAttrs(attrs,from,to){
+    if(from===to) return;
+    const fromPrefix=headingPrefix(from),toPrefix=headingPrefix(to);
+    for(const [key,value] of Object.entries({...attrs})){
+      if(!belongsToHeading(key,from)) continue;
+      const suffix=key.slice(fromPrefix.length);
+      const target=`${toPrefix}${suffix}`;
+      if(attrs[target]===undefined) attrs[target]=value;
+    }
+  }
+
+  function targetHeadingLevel(original,state){
+    if(state.first){state.first=false;return 1;}
+    if(original<=2){state.seenH2=true;return 2;}
+    if(!state.seenH2){state.seenH2=true;return 2;}
+    return 3;
+  }
+
+  function normalizeTextModules(input,stats,applyClasses){
+    const state={first:true,seenH2:false};
+    return String(input||'').replace(/\[et_pb_text([^\]]*)\]([\s\S]*?)\[\/et_pb_text\]/gi,(full,raw,originalContent)=>{
+      const attrs=parseAttrs(raw),levels=new Set();
+      const content=originalContent.replace(/<h([1-6])(\b[^>]*)>([\s\S]*?)<\/h\1>/gi,(heading,level,extra,body)=>{
+        const from=Number(level),to=targetHeadingLevel(from,state);
+        levels.add(to);
+        if(from!==to){copyHeadingAttrs(attrs,from,to);stats.headings++;}
+        return `<h${to}${extra}>${body}</h${to}>`;
+      });
+
+      if(applyClasses){
+        const hint=`${attrs.module_class||''} ${attrs.admin_label||''}`.toLowerCase();
+        if(levels.has(1)) addClass(attrs,'dm-typo-h1');
+        if(levels.has(2)) addClass(attrs,'dm-typo-h2');
+        if(levels.has(3)) addClass(attrs,'dm-typo-h3');
+        if(/kicker|eyebrow/.test(hint)) addClass(attrs,'dm-typo-kicker');
+        else if(/hero[-_ ]?lead|\blead\b/.test(hint)) addClass(attrs,'dm-typo-lead');
+        else if(/<p\b|<li\b/i.test(content)) addClass(attrs,'dm-typo-body');
+      }
+
+      return `${buildOpenTag('et_pb_text',attrs)}${content}[/et_pb_text]`;
     });
   }
 
@@ -58,19 +96,6 @@
     const h3w=safeCss(r.h3Weight,'700'),h3s=safeCss(r.h3Size,'18px');
     const kw=safeCss(r.kickerWeight,'700'),ks=safeCss(r.kickerSize,'10px'),kls=safeCss(r.kickerLetter,'.17em');
     return `.dm-typo-h1 h1{font-family:${family}!important;font-weight:${h1w}!important;font-size:${h1s}!important;line-height:${h1l}!important;letter-spacing:${h1ls}!important;text-transform:uppercase!important}.dm-typo-h2 h2{font-family:${family}!important;font-weight:${h2w}!important;font-size:${h2s}!important;line-height:${h2l}!important;letter-spacing:${h2ls}!important;text-transform:uppercase!important}.dm-typo-h3 h3{font-family:${family}!important;font-weight:${h3w}!important;font-size:${h3s}!important}.dm-typo-lead,.dm-typo-lead p{font-family:${family}!important;font-weight:${leadw}!important;font-size:${leads}!important;line-height:${leadl}!important}.dm-typo-body,.dm-typo-body p,.dm-typo-body li{font-family:${family}!important;font-weight:${bodyw}!important;font-size:${bodys}!important}.dm-typo-kicker,.dm-typo-kicker p{font-family:${family}!important;font-weight:${kw}!important;font-size:${ks}!important;letter-spacing:${kls}!important;text-transform:uppercase!important}@media(max-width:767px){.dm-typo-h1 h1{font-size:${h1m}!important}.dm-typo-h2 h2{font-size:${h2m}!important}}`;
-  }
-
-  function classifyTextModules(input){
-    return String(input||'').replace(/\[et_pb_text([^\]]*)\]([\s\S]*?)\[\/et_pb_text\]/gi,(full,raw,content)=>{
-      const attrs=parseAttrs(raw),hint=`${attrs.module_class||''} ${attrs.admin_label||''}`.toLowerCase();
-      if(/<h1\b/i.test(content)) addClass(attrs,'dm-typo-h1');
-      if(/<h2\b/i.test(content)) addClass(attrs,'dm-typo-h2');
-      if(/<h3\b/i.test(content)) addClass(attrs,'dm-typo-h3');
-      if(/kicker|eyebrow/.test(hint)) addClass(attrs,'dm-typo-kicker');
-      else if(/hero[-_ ]?lead|\blead\b/.test(hint)) addClass(attrs,'dm-typo-lead');
-      else if(/<p\b|<li\b/i.test(content)) addClass(attrs,'dm-typo-body');
-      return `${buildOpenTag('et_pb_text',attrs)}${content}[/et_pb_text]`;
-    });
   }
 
   function typographySection(css){
@@ -88,9 +113,8 @@
 
   DM.applyHeadingAndTypography=(input,options={})=>{
     const stats=options.stats||{headings:0,typography:0};
-    let out=normalizeHeadings(input,stats);
+    let out=normalizeTextModules(input,stats,!!options.enabled);
     if(options.enabled){
-      out=classifyTextModules(out);
       out=upsertTypographyCss(out,cssFor({...DM.DEFAULT_TYPOGRAPHY,...(options.rules||{})}));
       stats.typography++;
     }
